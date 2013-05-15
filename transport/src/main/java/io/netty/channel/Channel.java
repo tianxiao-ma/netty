@@ -168,7 +168,7 @@ public interface Channel extends AttributeMap, ChannelOutboundInvoker, ChannelPr
     Unsafe unsafe();
 
     /**
-     * <strong>Unsafe</strong> operations that should <strong>never</strong> be called
+     * <strong>VoidChannelFuture</strong> operations that should <strong>never</strong> be called
      * from user-code. These methods are only provided to implement the actual transport.
      */
     interface Unsafe {
@@ -178,9 +178,9 @@ public interface Channel extends AttributeMap, ChannelOutboundInvoker, ChannelPr
         ChannelHandlerContext headContext();
 
         /**
-         * Return a {@link VoidChannelPromise}. This method always return the same instance.
+         * Return a {@link ChannelPromise.VoidChannelPromise}. This method always return the same instance.
          */
-        ChannelPromise voidFuture();
+        ChannelPromise.VoidChannelPromise voidPromise();
 
         /**
          * Return the {@link SocketAddress} to which is bound local or

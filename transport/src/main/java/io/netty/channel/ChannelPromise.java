@@ -19,6 +19,8 @@ import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import io.netty.util.concurrent.Promise;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * Special {@link ChannelFuture} which is writable.
  */
@@ -60,4 +62,113 @@ public interface ChannelPromise extends ChannelFuture, Promise<Void> {
 
     @Override
     ChannelPromise awaitUninterruptibly();
+
+    /**
+     * A {@link ChannelFuture} which may only be used for flush, write and sendFile operations and only if you
+     * are sure the actual {@link ChannelHandler}s in the {@link ChannelPipeline} don't make use of it.
+     */
+    interface VoidChannelPromise extends ChannelPromise {
+
+        /**
+         * Does nothing and just return itself.
+         */
+        @Override
+        VoidChannelPromise setSuccess(Void result);
+
+        /**
+         * Does nothing and just return itself.
+         */
+        @Override
+        VoidChannelPromise setSuccess();
+
+        /**
+         * Does nothing and just return itself.
+         */
+        @Override
+        VoidChannelPromise setFailure(Throwable cause);
+
+        /**
+         * Throws {@link IllegalStateException}.
+         */
+        @Override
+        VoidChannelPromise addListener(GenericFutureListener<? extends Future<Void>> listener);
+
+        /**
+         * Throws {@link IllegalStateException}.
+         */
+        @Override
+        VoidChannelPromise addListeners(GenericFutureListener<? extends Future<Void>>... listeners);
+
+        /**
+         * Throws {@link IllegalStateException}.
+         */
+        @Override
+        VoidChannelPromise removeListener(GenericFutureListener<? extends Future<Void>> listener);
+
+        /**
+         * Throws {@link IllegalStateException}.
+         */
+        @Override
+        VoidChannelPromise removeListeners(GenericFutureListener<? extends Future<Void>>... listeners);
+
+        /**
+         * Throws {@link IllegalStateException}.
+         */
+        @Override
+        VoidChannelPromise sync() throws InterruptedException;
+
+        /**
+         * Throws {@link IllegalStateException}.
+         */
+        @Override
+        VoidChannelPromise syncUninterruptibly();
+
+        /**
+         * Throws {@link IllegalStateException}.
+         */
+        @Override
+        VoidChannelPromise await() throws InterruptedException;
+
+        /**
+         * Throws {@link IllegalStateException}.
+         */
+        @Override
+        VoidChannelPromise awaitUninterruptibly();
+
+        /**
+         * Returns {@code true} if and only if the I/O operation was completed
+         * successfully.
+         */
+        boolean isSuccess();
+
+        /**
+         * Returns {@code null}
+         */
+        Throwable cause();
+
+        /**
+         * Throws {@link IllegalStateException}.
+         */
+        boolean await(long timeout, TimeUnit unit) throws InterruptedException;
+
+        /**
+         * Throws {@link IllegalStateException}.
+         */
+        boolean await(long timeoutMillis) throws InterruptedException;
+
+        /**
+         * Throws {@link IllegalStateException}.
+         */
+        boolean awaitUninterruptibly(long timeout, TimeUnit unit);
+
+        /**
+         * Throws {@link IllegalStateException}.
+         */
+        boolean awaitUninterruptibly(long timeoutMillis);
+
+        /**
+         * Returns {@code null}
+         */
+        Void getNow();
+    }
 }

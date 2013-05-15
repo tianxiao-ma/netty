@@ -21,7 +21,7 @@ import io.netty.util.concurrent.GenericFutureListener;
 
 import java.util.concurrent.TimeUnit;
 
-final class VoidChannelPromise extends AbstractFuture<Void> implements ChannelFuture.Unsafe, ChannelPromise {
+final class DefaultVoidChannelPromise extends AbstractFuture<Void> implements ChannelPromise.VoidChannelPromise {
 
     private final Channel channel;
 
@@ -30,7 +30,7 @@ final class VoidChannelPromise extends AbstractFuture<Void> implements ChannelFu
      *
      * @param channel the {@link Channel} associated with this future
      */
-    public VoidChannelPromise(Channel channel) {
+    public DefaultVoidChannelPromise(Channel channel) {
         if (channel == null) {
             throw new NullPointerException("channel");
         }
@@ -38,31 +38,31 @@ final class VoidChannelPromise extends AbstractFuture<Void> implements ChannelFu
     }
 
     @Override
-    public ChannelPromise addListener(GenericFutureListener<? extends Future<Void>> listener) {
+    public VoidChannelPromise addListener(GenericFutureListener<? extends Future<Void>> listener) {
         fail();
         return this;
     }
 
     @Override
-    public ChannelPromise addListeners(GenericFutureListener<? extends Future<Void>>... listeners) {
+    public VoidChannelPromise addListeners(GenericFutureListener<? extends Future<Void>>... listeners) {
         fail();
         return this;
     }
 
     @Override
-    public ChannelPromise removeListener(GenericFutureListener<? extends Future<Void>> listener) {
+    public VoidChannelPromise removeListener(GenericFutureListener<? extends Future<Void>> listener) {
         // NOOP
         return this;
     }
 
     @Override
-    public ChannelPromise removeListeners(GenericFutureListener<? extends Future<Void>>... listeners) {
+    public VoidChannelPromise removeListeners(GenericFutureListener<? extends Future<Void>>... listeners) {
         // NOOP
         return this;
     }
 
     @Override
-    public ChannelPromise await() throws InterruptedException {
+    public VoidChannelPromise await() throws InterruptedException {
         if (Thread.interrupted()) {
             throw new InterruptedException();
         }
@@ -82,7 +82,7 @@ final class VoidChannelPromise extends AbstractFuture<Void> implements ChannelFu
     }
 
     @Override
-    public ChannelPromise awaitUninterruptibly() {
+    public VoidChannelPromise awaitUninterruptibly() {
         fail();
         return this;
     }
@@ -120,23 +120,23 @@ final class VoidChannelPromise extends AbstractFuture<Void> implements ChannelFu
     }
 
     @Override
-    public ChannelPromise sync() {
+    public VoidChannelPromise sync() {
         fail();
         return this;
     }
 
     @Override
-    public ChannelPromise syncUninterruptibly() {
+    public VoidChannelPromise syncUninterruptibly() {
         fail();
         return this;
     }
     @Override
-    public ChannelPromise setFailure(Throwable cause) {
+    public VoidChannelPromise setFailure(Throwable cause) {
         return this;
     }
 
     @Override
-    public ChannelPromise setSuccess() {
+    public VoidChannelPromise setSuccess() {
         return this;
     }
 
@@ -155,7 +155,7 @@ final class VoidChannelPromise extends AbstractFuture<Void> implements ChannelFu
     }
 
     @Override
-    public ChannelPromise setSuccess(Void result) {
+    public VoidChannelPromise setSuccess(Void result) {
         return this;
     }
 

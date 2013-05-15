@@ -123,7 +123,7 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
                             key.interestOps(key.interestOps() & ~readInterestOp);
                             pipeline.fireUserEventTriggered(ChannelInputShutdownEvent.INSTANCE);
                         } else {
-                            close(voidFuture());
+                            close(voidPromise());
                         }
                     }
                 } else if (!firedChannelReadSuspended) {

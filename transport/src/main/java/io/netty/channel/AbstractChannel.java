@@ -79,7 +79,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
     private final Unsafe unsafe;
     private final DefaultChannelPipeline pipeline;
     private final ChannelFuture succeededFuture = new SucceededChannelFuture(this, null);
-    private final VoidChannelPromise voidPromise = new VoidChannelPromise(this);
+    private final DefaultVoidChannelPromise voidPromise = new DefaultVoidChannelPromise(this);
     private final CloseFuture closeFuture = new CloseFuture(this);
 
     protected final ChannelFlushPromiseNotifier flushFutureNotifier = new ChannelFlushPromiseNotifier();
@@ -487,7 +487,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             @Override
             public void run() {
                 flushNowPending = false;
-                flush(voidFuture());
+                flush(voidPromise());
             }
         };
 
@@ -549,7 +549,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
         }
 
         @Override
-        public final ChannelPromise voidFuture() {
+        public final ChannelPromise.VoidChannelPromise voidPromise() {
             return voidPromise;
         }
 
@@ -623,7 +623,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 if (!promise.tryFailure(t)) {
                     logger.warn(
                             "Tried to fail the registration promise, but it is complete already. " +
-                            "Swallowing the cause of the registration failure:", t);
+                                    "Swallowing the cause of the registration failure:", t);
                 }
                 closeFuture.setClosed();
             }
@@ -727,7 +727,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                         });
                     }
 
-                    deregister(voidFuture());
+                    deregister(voidPromise());
                 } else {
                     // Closed already.
                     promise.setSuccess();
@@ -811,7 +811,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                             pipeline.fireExceptionCaught(e);
                         }
                     });
-                    close(unsafe().voidFuture());
+                    close(unsafe().voidPromise());
                 }
             } else {
                 eventLoop().execute(beginReadTask);
@@ -882,7 +882,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 } catch (Throwable t) {
                     flushFutureNotifier.notifyFlushFutures(t);
                     if (t instanceof IOException) {
-                        close(voidFuture());
+                        close(voidPromise());
                     }
                 }
             } else {
@@ -931,7 +931,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 } else {
                     flushFutureNotifier.notifyFlushFutures(cause);
                     if (cause instanceof IOException) {
-                        close(voidFuture());
+                        close(voidPromise());
                     }
                 }
             } finally {
@@ -953,7 +953,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             if (isOpen()) {
                 return;
             }
-            close(voidFuture());
+            close(voidPromise());
         }
 
         private void invokeLater(Runnable task) {
@@ -1075,7 +1075,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
      */
     protected abstract boolean isFlushPending();
 
-    private final class CloseFuture extends DefaultChannelPromise implements ChannelFuture.Unsafe {
+    final class CloseFuture extends DefaultChannelPromise {
 
         CloseFuture(AbstractChannel ch) {
             super(ch);
