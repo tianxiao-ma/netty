@@ -82,10 +82,16 @@ public interface ChannelPromise extends ChannelFuture, Promise<Void> {
         VoidChannelPromise setSuccess();
 
         /**
-         * Does nothing and just return itself.
+         * Will call {@link ChannelPipeline#fireExceptionCaught(Throwable)}.
          */
         @Override
         VoidChannelPromise setFailure(Throwable cause);
+
+        /**
+         * Will call {@link ChannelPipeline#fireExceptionCaught(Throwable)}.
+         */
+        @Override
+        boolean tryFailure(Throwable cause);
 
         /**
          * Throws {@link IllegalStateException}.

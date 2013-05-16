@@ -132,6 +132,7 @@ final class DefaultVoidChannelPromise extends AbstractFuture<Void> implements Ch
     }
     @Override
     public VoidChannelPromise setFailure(Throwable cause) {
+        channel.pipeline().fireExceptionCaught(cause);
         return this;
     }
 
@@ -142,6 +143,7 @@ final class DefaultVoidChannelPromise extends AbstractFuture<Void> implements Ch
 
     @Override
     public boolean tryFailure(Throwable cause) {
+        channel.pipeline().fireExceptionCaught(cause);
         return false;
     }
 
