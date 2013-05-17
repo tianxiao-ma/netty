@@ -92,6 +92,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
     private ClosedChannelException closedChannelException;
     private boolean inFlushNow;
     private boolean flushNowPending;
+    private FlushTask flushTaskInProgress;
 
     /** Cache for the string representation of this channel */
     private boolean strValActive;
@@ -436,45 +437,84 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
         return strVal;
     }
 
-    /**
-     * {@link Unsafe} implementation which sub-classes must extend and use.
-     */
-    protected abstract class AbstractUnsafe implements Unsafe {
+    protected final class FlushTask {
+        private final FileRegion region;
+        private final ChannelPromise promise;
+        private FlushTask next;
+        private final AbstractUnsafe unsafe;
 
-        private final class FlushTask {
-            final FileRegion region;
-            final ChannelPromise promise;
-            FlushTask next;
+        FlushTask(AbstractUnsafe unsafe, FileRegion region, ChannelPromise promise) {
+            this.region = region;
+            this.promise = promise;
+            this.unsafe = unsafe;
+        }
 
-            FlushTask(FileRegion region, ChannelPromise promise) {
-                this.region = region;
-                this.promise = promise;
-                promise.addListener(new ChannelFutureListener() {
+        public void setSuccess() {
+            if (eventLoop().inEventLoop()) {
+                promise.setSuccess();
+                complete();
+            } else {
+                eventLoop().execute(new Runnable() {
                     @Override
-                    public void operationComplete(ChannelFuture future) throws Exception {
-                        flushTaskInProgress = next;
-                        if (next != null) {
-                            try {
-                                FileRegion region = next.region;
-                                if (region == null) {
-                                    // no region present means the next flush task was to directly flush
-                                    // the outbound buffer
-                                    flushNotifierAndFlush(next.promise);
-                                } else {
-                                    // flush the region now
-                                    doFlushFileRegion(region, next.promise);
-                                }
-                            } catch (Throwable cause) {
-                                next.promise.setFailure(cause);
-                            }
-                        } else {
-                            // notify the flush futures
-                            flushFutureNotifier.notifyFlushFutures();
-                        }
+                    public void run() {
+                        setSuccess();
                     }
                 });
             }
         }
+
+        public void setProgress(long progress, long total) {
+            if (promise instanceof ChannelProgressivePromise) {
+                ((ChannelProgressivePromise) promise).setProgress(progress, total);
+            }
+        }
+
+        public void setFailure(final Throwable cause) {
+            if (eventLoop().inEventLoop()) {
+                promise.setFailure(cause);
+                complete();
+            } else {
+                eventLoop().execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        setFailure(cause);
+                    }
+                });
+            }
+        }
+
+        public FileRegion region() {
+            return region;
+        }
+
+        private void complete() {
+            region.release();
+            flushTaskInProgress = next;
+            if (next != null) {
+                try {
+                    FileRegion region = next.region;
+                    if (region == null) {
+                        // no region present means the next flush task was to directly flush
+                        // the outbound buffer
+                        unsafe.flushNotifierAndFlush(next.promise);
+                    } else {
+                        // flush the region now
+                        doFlushFileRegion(next);
+                    }
+                } catch (Throwable cause) {
+                    next.promise.setFailure(cause);
+                }
+            } else {
+                // notify the flush futures
+                flushFutureNotifier.notifyFlushFutures();
+            }
+        }
+    }
+
+    /**
+     * {@link Unsafe} implementation which sub-classes must extend and use.
+     */
+    protected abstract class AbstractUnsafe implements Unsafe {
 
         private final Runnable beginReadTask = new Runnable() {
             @Override
@@ -490,8 +530,6 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 flush(voidPromise());
             }
         };
-
-        private FlushTask flushTaskInProgress;
 
         @Override
         public final void sendFile(final FileRegion region, final ChannelPromise promise) {
@@ -521,10 +559,10 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
         private void sendFile0(FileRegion region, ChannelPromise promise) {
             FlushTask task = flushTaskInProgress;
             if (task == null) {
-                flushTaskInProgress = new FlushTask(region, promise);
+                flushTaskInProgress = task = new FlushTask(this, region, promise);
                 try {
                     // the first FileRegion to flush so trigger it now!
-                    doFlushFileRegion(region, promise);
+                    doFlushFileRegion(task);
                 } catch (Throwable cause) {
                     region.release();
                     promise.setFailure(cause);
@@ -540,7 +578,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 task = next;
             }
             // there is something that needs to get flushed first so add it as next in the chain
-            task.next = new FlushTask(region, promise);
+            task.next = new FlushTask(this, region, promise);
         }
 
         @Override
@@ -831,7 +869,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                         }
                         task = t.next;
                     }
-                    task.next = new FlushTask(null, promise);
+                    task.next = new FlushTask(this, null, promise);
 
                     return;
                 }
@@ -1058,7 +1096,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
      *
      * Sub-classes may override this as this implementation will just thrown an {@link UnsupportedOperationException}
      */
-    protected void doFlushFileRegion(FileRegion region, ChannelPromise promise) throws Exception {
+    protected void doFlushFileRegion(FlushTask task) throws Exception {
         throw new UnsupportedOperationException();
     }
 
