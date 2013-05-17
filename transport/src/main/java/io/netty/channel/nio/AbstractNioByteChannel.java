@@ -181,7 +181,7 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
                         return;
                     } else {
                         writtenBytes += localWrittenBytes;
-                        task.setProgress(writtenBytes, task.region().count());
+                        task.setProgress(writtenBytes);
 
                         if (writtenBytes >= task.region().count()) {
                             task.setSuccess();

@@ -113,7 +113,7 @@ public abstract class OioByteStreamChannel extends AbstractOioByteChannel {
                 return;
             }
             written += localWritten;
-            task.setProgress(written, task.region().count());
+            task.setProgress(written);
 
             if (written >= task.region().count()) {
                 task.setSuccess();

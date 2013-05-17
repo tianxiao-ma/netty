@@ -463,9 +463,9 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             }
         }
 
-        public void setProgress(long progress, long total) {
+        public void setProgress(long progress) {
             if (promise instanceof ChannelProgressivePromise) {
-                ((ChannelProgressivePromise) promise).setProgress(progress, total);
+                ((ChannelProgressivePromise) promise).setProgress(progress, region.count());
             }
         }
 
@@ -1092,7 +1092,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
     }
 
     /**
-     * Flush the content of the given {@link FileRegion} to the remote peer.
+     * Flush the content of the given {@link FlushTask} to the remote peer.
      *
      * Sub-classes may override this as this implementation will just thrown an {@link UnsupportedOperationException}
      */
