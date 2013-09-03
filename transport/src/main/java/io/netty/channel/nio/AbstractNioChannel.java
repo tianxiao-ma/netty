@@ -18,6 +18,7 @@ package io.netty.channel.nio;
 import io.netty.channel.AbstractChannel;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelException;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.ConnectTimeoutException;
 import io.netty.channel.EventLoop;
@@ -103,6 +104,11 @@ public abstract class AbstractNioChannel extends AbstractChannel {
     @Override
     public NioEventLoop eventLoop() {
         return (NioEventLoop) super.eventLoop();
+    }
+
+    @Override
+    public ChannelFuture bind(SocketAddress localAddress) {
+        return super.bind(localAddress);
     }
 
     /**

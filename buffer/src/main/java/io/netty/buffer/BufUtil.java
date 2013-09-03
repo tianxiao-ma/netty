@@ -33,7 +33,7 @@ import java.util.Iterator;
  */
 public final class BufUtil {
 
-    private static final char[] HEXDUMP_TABLE = new char[256 * 4];
+    private static final char[] HEXDUMP_TABLE = new char[256 * 2];
 
     static {
         final char[] DIGITS = "0123456789abcdef".toCharArray();

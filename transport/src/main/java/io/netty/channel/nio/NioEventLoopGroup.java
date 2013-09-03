@@ -24,66 +24,72 @@ import java.nio.channels.spi.SelectorProvider;
 import java.util.concurrent.ThreadFactory;
 
 /**
- * {@link MultithreadEventLoopGroup} implementations which is used for NIO {@link Selector} based {@link Channel}s.
+ * {@link MultithreadEventLoopGroup} implementations which is used for NIO
+ * {@link Selector} based {@link Channel}s.
  */
 public class NioEventLoopGroup extends MultithreadEventLoopGroup {
 
-    /**
-     * Create a new instance using {@link #DEFAULT_EVENT_LOOP_THREADS} number of threads, the default
-     * {@link ThreadFactory} and  the {@link SelectorProvider} which is returned by {@link SelectorProvider#provider()}.
-     */
-    public NioEventLoopGroup() {
-        this(DEFAULT_EVENT_LOOP_THREADS);
-    }
+	/**
+	 * Create a new instance using {@link #DEFAULT_EVENT_LOOP_THREADS} number of
+	 * threads, the default {@link ThreadFactory} and the
+	 * {@link SelectorProvider} which is returned by
+	 * {@link SelectorProvider#provider()}.
+	 */
+	public NioEventLoopGroup() {
+		this(DEFAULT_EVENT_LOOP_THREADS);
+	}
 
-    /**
-     * Create a new instance using nThreads number of threads, {@link ThreadFactory} and the
-     * {@link SelectorProvider} which is returned by {@link SelectorProvider#provider()}.
-     */
-    public NioEventLoopGroup(int nThreads) {
-        this(nThreads, null);
-    }
+	/**
+	 * Create a new instance using nThreads number of threads,
+	 * {@link ThreadFactory} and the {@link SelectorProvider} which is returned
+	 * by {@link SelectorProvider#provider()}.
+	 */
+	public NioEventLoopGroup(int nThreads) {
+		this(nThreads, null);
+	}
 
-    /**
-     * Create a new instance using nThreads number of threads, the given {@link ThreadFactory} and the
-     * {@link SelectorProvider} which is returned by {@link SelectorProvider#provider()}.
-     */
-    public NioEventLoopGroup(int nThreads, ThreadFactory threadFactory) {
-        this(nThreads, threadFactory, SelectorProvider.provider());
-    }
+	/**
+	 * Create a new instance using nThreads number of threads, the given
+	 * {@link ThreadFactory} and the {@link SelectorProvider} which is returned
+	 * by {@link SelectorProvider#provider()}.
+	 */
+	public NioEventLoopGroup(int nThreads, ThreadFactory threadFactory) {
+		this(nThreads, threadFactory, SelectorProvider.provider());
+	}
 
-    /**
-     * Create a new instance using nThreads number of threads, the given {@link ThreadFactory} and the given
-     * {@link SelectorProvider}.
-     */
-    public NioEventLoopGroup(
-            int nThreads, ThreadFactory threadFactory, final SelectorProvider selectorProvider) {
-        super(nThreads, threadFactory, selectorProvider);
-    }
+	/**
+	 * Create a new instance using nThreads number of threads, the given
+	 * {@link ThreadFactory} and the given {@link SelectorProvider}.
+	 */
+	public NioEventLoopGroup(int nThreads, ThreadFactory threadFactory, final SelectorProvider selectorProvider) {
+		super(nThreads, threadFactory, selectorProvider);
+	}
 
-    /**
-     * Sets the percentage of the desired amount of time spent for I/O in the child event loops.  The default value is
-     * {@code 50}, which means the event loop will try to spend the same amount of time for I/O as for non-I/O tasks.
-     */
-    public void setIoRatio(int ioRatio) {
-        for (EventExecutor e: children()) {
-            ((NioEventLoop) e).setIoRatio(ioRatio);
-        }
-    }
+	/**
+	 * Sets the percentage of the desired amount of time spent for I/O in the
+	 * child event loops. The default value is {@code 50}, which means the event
+	 * loop will try to spend the same amount of time for I/O as for non-I/O
+	 * tasks.
+	 */
+	public void setIoRatio(int ioRatio) {
+		for (EventExecutor e : children()) {
+			((NioEventLoop) e).setIoRatio(ioRatio);
+		}
+	}
 
-    /**
-     * Replaces the current {@link Selector}s of the child event loops with newly created {@link Selector}s to work
-     * around the  infamous epoll 100% CPU bug.
-     */
-    public void rebuildSelectors() {
-        for (EventExecutor e: children()) {
-            ((NioEventLoop) e).rebuildSelector();
-        }
-    }
+	/**
+	 * Replaces the current {@link Selector}s of the child event loops with
+	 * newly created {@link Selector}s to work around the infamous epoll 100%
+	 * CPU bug.
+	 */
+	public void rebuildSelectors() {
+		for (EventExecutor e : children()) {
+			((NioEventLoop) e).rebuildSelector();
+		}
+	}
 
-    @Override
-    protected EventExecutor newChild(
-            ThreadFactory threadFactory, Object... args) throws Exception {
-        return new NioEventLoop(this, threadFactory, (SelectorProvider) args[0]);
-    }
+	@Override
+	protected EventExecutor newChild(ThreadFactory threadFactory, Object... args) throws Exception {
+		return new NioEventLoop(this, threadFactory, (SelectorProvider) args[0]);
+	}
 }

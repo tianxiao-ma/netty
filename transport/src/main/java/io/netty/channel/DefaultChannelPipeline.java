@@ -44,6 +44,8 @@ import java.util.concurrent.Future;
 /**
  * The default {@link ChannelPipeline} implementation.  It is usually created
  * by a {@link Channel} implementation when the {@link Channel} is created.
+ *
+ * 在这个{@link ChannelPipeline}的实现中，所有接收数据的操作都是从{@link #head}开始从前往后一个一个执行{@link ChannelHandlerContext}的，而对于所有写数据操作，还有{@link #bind(java.net.SocketAddress)}、{@link #connect(java.net.SocketAddress)}操作，则都是从{@link #tail}开始从后往前一个一个执行{@link ChannelHandlerContext}的
  */
 final class DefaultChannelPipeline implements ChannelPipeline {
 

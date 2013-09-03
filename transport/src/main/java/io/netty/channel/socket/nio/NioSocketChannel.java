@@ -236,6 +236,7 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
         if (writtenBytes >= expectedWrittenBytes) {
             // Wrote the outbound buffer completely - clear OP_WRITE.
             if ((interestOps & SelectionKey.OP_WRITE) != 0) {
+                // 要写的数据都写完了，将OP_WRITE标记清0
                 key.interestOps(interestOps & ~SelectionKey.OP_WRITE);
             }
         } else {
@@ -249,6 +250,8 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
             //       - Set OP_WRITE so that the event loop calls flushForcibly() later.
             if (writtenBytes > 0 || lastSpin) {
                 if ((interestOps & SelectionKey.OP_WRITE) == 0) {
+                    // 如果写入了一部分数据，或者尝试了一定次数之后没有往channel中写入任何数据，那么要重置OP_WRITE，这样
+                    // 下一次可以继续进行写入
                     key.interestOps(interestOps | SelectionKey.OP_WRITE);
                 }
             }

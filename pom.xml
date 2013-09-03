@@ -26,7 +26,7 @@
   <groupId>io.netty</groupId>
   <artifactId>netty-parent</artifactId>
   <packaging>pom</packaging>
-  <version>4.0.0.CR3-SNAPSHOT</version>
+  <version>4.0.0.tianxiao</version>
 
   <name>Netty</name>
   <url>http://netty.io/</url>
@@ -291,7 +291,7 @@
         <version>3.0</version>
         <configuration>
           <compilerVersion>1.7</compilerVersion>
-          <fork>true</fork>
+          <fork>false</fork>
           <source>1.6</source>
           <target>1.6</target>
           <debug>true</debug>
@@ -352,6 +352,8 @@
           </execution>
         </executions>
       </plugin>
+
+		<!--
       <plugin>
         <artifactId>maven-checkstyle-plugin</artifactId>
         <version>2.10</version>
@@ -380,6 +382,7 @@
           </dependency>
         </dependencies>
       </plugin>
+		-->
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>

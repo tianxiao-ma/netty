@@ -423,6 +423,7 @@ public abstract class SingleThreadEventExecutor extends AbstractEventExecutor {
         // NOOP
     }
 
+    // 这个方法往taskQueue中放一个WAKEUP_TASK任务，这个任务其实就是一个占位符(没有特殊的意义)当pollTask或者takeTask方法碰到这个任务的时候会当成是null，之所以要放这个任务到taskQueue中去是为了唤醒等待在taskQueue的take方法上的线程
     protected void wakeup(boolean inEventLoop) {
         if (!inEventLoop || state == ST_SHUTTING_DOWN) {
             taskQueue.add(WAKEUP_TASK);
@@ -602,6 +603,7 @@ public abstract class SingleThreadEventExecutor extends AbstractEventExecutor {
 
     /**
      * Confirm that the shutdown if the instance should be done now!
+     * 主要是为了确认gracefulShutdownQuietPeriod这个时间段内没有任务被执行，这样就基本可以假定关闭是安全的
      */
     protected boolean confirmShutdown() {
         if (!isShuttingDown()) {
@@ -614,6 +616,7 @@ public abstract class SingleThreadEventExecutor extends AbstractEventExecutor {
 
         cancelDelayedTasks();
 
+        // 如果是第一次执行关闭，记录下开始关闭的时间
         if (gracefulShutdownStartTime == 0) {
             gracefulShutdownStartTime = nanoTime();
         }
@@ -625,16 +628,19 @@ public abstract class SingleThreadEventExecutor extends AbstractEventExecutor {
             }
 
             // There were tasks in the queue. Wait a little bit more until no tasks are queued for the quiet period.
+            // 任务队列中有任务被执行了，所以要等待一段时间，因为要等到gracefulShutdownQuietPeriod规定时间段内没有任务
+            // 被提交才能真正shutdown
             wakeup(true);
             return false;
         }
 
         final long nanoTime = nanoTime();
-
+        // 如果已经关闭成功，或者已经超过gracefulShutdownTimeout规定的时间了，那么就确认可以关闭了
         if (isShutdown() || nanoTime - gracefulShutdownStartTime > gracefulShutdownTimeout) {
             return true;
         }
 
+        // 如果在gracefulShutdownQuietPeriod这段时间内有任务被执行了，返回false
         if (nanoTime - lastExecutionTime <= gracefulShutdownQuietPeriod) {
             // Check if any tasks were added to the queue every 100ms.
             // TODO: Change the behavior of takeTask() so that it returns on timeout.

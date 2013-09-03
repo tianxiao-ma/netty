@@ -61,6 +61,7 @@ public class DiscardClientHandler extends ChannelInboundByteHandlerAdapter {
             throws Exception {
         // Server is supposed to send nothing, but if it sends something, discard it.
         in.clear();
+        ctx.fireInboundBufferUpdated();
     }
 
     @Override

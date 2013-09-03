@@ -1647,6 +1647,7 @@ final class DefaultChannelHandlerContext extends DefaultAttributeMap implements 
         }
     }
 
+    // 当有数据需要进行读取的时候，<code>PipleLine</code>中的<code>Context</code>是从头开始一个一个执行的
     private DefaultChannelHandlerContext findContextInbound() {
         DefaultChannelHandlerContext ctx = this;
         do {
@@ -1683,6 +1684,7 @@ final class DefaultChannelHandlerContext extends DefaultAttributeMap implements 
         }
     }
 
+    // 当有数据需要写出去或者在执行bind操作的时候，<code>PipleLine</code>中的<code>Context</code>是从尾部开始往前一个一个执行的
     private DefaultChannelHandlerContext findContextOutbound() {
         DefaultChannelHandlerContext ctx = this;
         do {

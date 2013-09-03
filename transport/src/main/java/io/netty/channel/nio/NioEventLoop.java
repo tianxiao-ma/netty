@@ -75,6 +75,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
 
         int selectorAutoRebuildThreshold = SystemPropertyUtil.getInt("io.netty.selectorAutoRebuildThreshold", 512);
         if (selectorAutoRebuildThreshold < MIN_PREMATURE_SELECTOR_RETURNS) {
+            // selectorAutoRebuildThreshold=0时，selector不会进行rebuild
             selectorAutoRebuildThreshold = 0;
         }
 
@@ -311,6 +312,19 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                     // the first case (BAD - wake-up required) and the second case
                     // (OK - no wake-up required).
 
+                    // 首先，由于selector的wakeup方法调用多次跟调用一次的效果是一样的；
+                    // 其次，由于wakeup操作的开销很大，所以应该尽量避免多次重复调用(调用一次就够了)
+                    // 基于前面两个原因，在真正调用selector的wakeup方法之前，都会去调用wakenUp.compareAndSet(false, true)，
+                    // 这样当发现wakeup变量已经被设置成true了之后，这些后续的调用就不执行了。只有当前循环进入到下一轮，将wakeup
+                    // 变量重设置成false之后，wakenUp.compareAndSet(false, true)才能执行成功，同时调用selector的wakeup方法。
+                    // 这样就会出现一个问题，当wakeup变量在wakenUp.set(false)和selector.select(...)方法调用之间被设置，那么
+                    // selector.select(...)就会立即立即返回，但是由于返回之后还要执行其他操作，而这个时候如果wakeup方法被调用
+                    // 由于此时的wakeup变量仍然还是true，所以调用是不会成功的，这样就会导致下一次执行selector.select(...)会被
+                    // 不必要地阻塞，从而不符合selector.wakeup方法的语义。所以，这里加了下面的这段逻辑。
+                    // 这段逻辑的问题是，如果wakeup变量在wakenUp.getAndSet(false)和selector.select(...)之间被调用，那么不管
+                    // 之后是否有真的有线程来执行NioEventLoog.wakeup()方法，都去调用selector.wakeup方法一下，这样下一次调用
+                    // selector.select(...)方法都会立即返回。
+                    // 这里要结合selector.wakeup方法的语义来看，总体来说这样做是为了尽量保持selector.wakeup方法的语义的语义。
                     if (wakenUp.get()) {
                         selector.wakeup();
                     }
@@ -548,13 +562,21 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
     }
 
+    //
     private void select() throws IOException {
         Selector selector = this.selector;
         try {
             int selectCnt = 0;
             long currentTimeNanos = System.nanoTime();
             long selectDeadLineNanos = currentTimeNanos + delayNanos(currentTimeNanos);
+
+            // selector.select(...)的等待时间是在没有delay task的情况下，是默认的1秒，在有delay task的情况下，
+            // 是delay task的延时时间。
+            // 由于在某些情况下，selector.select(...)是会意外返回的(此时没有channel可以读写)，所以这里用了一个无限
+            // 循环。同时有一个阀值SELECTOR_AUTO_REBUILD_THRESHOLD，当意外返回的次数超过阀值的时候，就会重新构建
+            // 一个新的selector。
             for (;;) {
+                // 除以1000000L，是为了把nanoseconds转换成milliseconds
                 long timeoutMillis = (selectDeadLineNanos - currentTimeNanos + 500000L) / 1000000L;
                 if (timeoutMillis <= 0) {
                     if (selectCnt == 0) {

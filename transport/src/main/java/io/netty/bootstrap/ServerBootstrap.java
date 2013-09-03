@@ -268,6 +268,8 @@ public final class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, Se
                     logger.warn("Failed to register an accepted channel: " + child, t);
                 }
             }
+
+            ctx.fireInboundBufferUpdated();
         }
 
         @Override

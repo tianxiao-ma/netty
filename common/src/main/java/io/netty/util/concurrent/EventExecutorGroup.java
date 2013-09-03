@@ -46,11 +46,16 @@ public interface EventExecutorGroup extends ScheduledExecutorService, Iterable<E
      * Unlike {@link #shutdown()}, graceful shutdown ensures that no tasks are submitted for <i>'the quiet period'</i>
      * (usually a couple seconds) before it shuts itself down.  If a task is submitted during the quiet period,
      * it is guaranteed to be accepted and the quiet period will start over.
+     * <p>
+     * 这里的quietPeriod，也就是静默期的意思是，当在这段时间内没有任何任务提交任务的时候，就能够安全的停止事件循环了。事件循环每次执行完一个或者多个任务之后都回去更新一个最后执行时间，当要关闭这个事件循环的时候回去检查一下当前时间与上一次执行时间是不是在静默期内，如果在静默期内那么事件循环就不能关闭。
      *
+     * 当然，如果在静默周期内一直有任务提交，那么这个事件循环就永远无法关闭了，所以又有了另外一个参数，也就是timeout。不管静默周期内是否有任务提交，只要第一次调用shutdownGracefully的时间和当前时间超出了timeout约定的时间，那么事件循环都将会关闭
+     * </p>
      * @param quietPeriod the quiet period as described in the documentation
      * @param timeout     the maximum amount of time to wait until the executor is {@linkplain #shutdown()}
      *                    regardless if a task was submitted during the quiet period
      * @param unit        the unit of {@code quietPeriod} and {@code timeout}
+     *
      */
     void shutdownGracefully(long quietPeriod, long timeout, TimeUnit unit);
 
