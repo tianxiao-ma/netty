@@ -34,12 +34,14 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
     private static final int DEFAULT_NUM_DIRECT_ARENA = Math.max(0, SystemPropertyUtil.getInt(
             "io.netty.allocator.numDirectArenas", Runtime.getRuntime().availableProcessors()));
     private static final int DEFAULT_PAGE_SIZE;
-    private static final int DEFAULT_MAX_ORDER; // 8192 << 11 = 16 MiB per chunk
+    private static final int DEFAULT_MAX_ORDER; // 8192 << 11 = 16 MiB per chunk，这个是默认值，可以通过配置修改
 
     private static final int MIN_PAGE_SIZE = 4096;
     private static final int MAX_CHUNK_SIZE = (int) (((long) Integer.MAX_VALUE + 1) / 2);
 
     static {
+        // 先在这里确定一下DEFAULT_PAGE_SIZE和DEFAULT_MAX_ORDER的值，由于支持配置项设定这两个值，所以需要检查一下
+        // 从后面的逻辑来看，pageSize允许的最小值是4096，最大值是2^16次方(也就是pageSize==MAX_CHUNK_SIZE)
         int defaultPageSize = SystemPropertyUtil.getInt("io.netty.allocator.pageSize", 8192);
         Throwable pageSizeFallbackCause = null;
         try {
@@ -50,6 +52,8 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
         }
         DEFAULT_PAGE_SIZE = defaultPageSize;
 
+        // chunkSize通过pageSize右移maxOrder次获得
+        // maxOrder可以设置成0，此时一个page就是一个chunk
         int defaultMaxOrder = SystemPropertyUtil.getInt("io.netty.allocator.maxOrder", 11);
         Throwable maxOrderFallbackCause = null;
         try {
@@ -83,6 +87,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
     private final PoolArena<byte[]>[] heapArenas;
     private final PoolArena<ByteBuffer>[] directArenas;
 
+    // 每个线程会被分配到一个heapArena和一个directArena，在线程生命周期中会一直使用，简化管理，提高并发性
     final ThreadLocal<PoolThreadCache> threadCache = new ThreadLocal<PoolThreadCache>() {
         private final AtomicInteger index = new AtomicInteger();
         @Override
@@ -142,7 +147,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
             heapArenas = null;
         }
 
-        if (nHeapArena > 0) {
+        if (nDirectArena > 0) {
             directArenas = newArenaArray(nDirectArena);
             for (int i = 0; i < directArenas.length; i ++) {
                 directArenas[i] = new PoolArena.DirectArena(this, pageSize, maxOrder, pageShifts, chunkSize);
@@ -163,6 +168,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
         }
 
         // Ensure pageSize is power of 2.
+        // 只有最高位为1，其他各个位都位0
         boolean found1 = false;
         int pageShifts = 0;
         for (int i = pageSize; i != 0 ; i >>= 1) {
@@ -187,8 +193,10 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
         }
 
         // Ensure the resulting chunkSize does not overflow.
+        // chunkSize是通过pageSize右移maxOrder位来确定的，同时要保证chunkSize不能超过MAX_CHUNK_SIZE
         int chunkSize = pageSize;
         for (int i = maxOrder; i > 0; i --) {
+            // 检查一下chunkSize右移之后是不是会超过MAX_CHUNK_SIZE
             if (chunkSize > MAX_CHUNK_SIZE / 2) {
                 throw new IllegalArgumentException(String.format(
                         "pageSize (%d) << maxOrder (%d) must not exceed %d", pageSize, maxOrder, MAX_CHUNK_SIZE));

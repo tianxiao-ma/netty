@@ -21,6 +21,10 @@ import io.netty.util.internal.StringUtil;
 
 import java.nio.ByteBuffer;
 
+/**
+ * <code>PoolArena</code>有两个实现，分别是{@link DirectArena}和{@link HeapArena}，前者用{@link ByteBuffer#allocateDirect(int) java的堆外buffer实现}，后者用<code>byte[]</code>实现
+ * @param <T>
+ */
 abstract class PoolArena<T> {
 
     final PooledByteBufAllocator parent;
@@ -31,9 +35,24 @@ abstract class PoolArena<T> {
     private final int chunkSize;
     private final int subpageOverflowMask;
 
+    // 一个page中被分配的小于512字节的存储块构成的循环链表数组
+    // 0~15字节请求形成的链表放到tinySubpagePools[0]
+    // 16~31字节请求形成的链表放到tinySubpagePools[1]
+    // ...
+    // 496~511字节请求形成的链表放到tinySubpagePools[31]
     private final PoolSubpage<T>[] tinySubpagePools;
+    // 一个page中被分配的大于等于512字节但是小于(pageSize - 1)字节的存储块的循环链表数组
+    // 512~1023字节请求形成的链表放到smallSubpagePools[0]
+    // 1024~2047字节请求形成的链表放到smallSubpagePools[1]
+    // 2048~4095字节请求形成的链表放到smallSubpagePools[2]
+    // ...
+    // 7158~(pageSize - 1)字节请求形成的链表放到smallSubpagePools[8]
     private final PoolSubpage<T>[] smallSubpagePools;
 
+
+    // 下面的这些PoolChunkList会组成一个双向链表，每个节点有一个指针，指向一个PoolChunk列表。
+    // 每个PoolChunkList节点中的PoolChunk列表中的PoolChunk的使用量都在一个特定的范围内。
+    // 比如q050这个PoolChunkList，他所指向的PoolChunk列表中的PoolChunk的使用量都在50%到100%之间
     private final PoolChunkList<T> q050;
     private final PoolChunkList<T> q025;
     private final PoolChunkList<T> q000;
@@ -57,6 +76,8 @@ abstract class PoolArena<T> {
             tinySubpagePools[i] = newSubpagePoolHead(pageSize);
         }
 
+
+        // pageSize的最小值是4096，所以pageShifts的最小值是12
         smallSubpagePools = newSubpagePoolArray(pageShifts - 9);
         for (int i = 0; i < smallSubpagePools.length; i ++) {
             smallSubpagePools[i] = newSubpagePoolHead(pageSize);
@@ -97,6 +118,9 @@ abstract class PoolArena<T> {
 
     private void allocate(PoolThreadCache cache, PooledByteBuf<T> buf, final int reqCapacity) {
         final int normCapacity = normalizeCapacity(reqCapacity);
+        // 如果请求的大小不到一个pageSize，会去查看tinySubpagePools和smallSubpagePools
+        // smallSubpagePools和tinySubpagePools这两个辅助数组是用来提高查询速度的，不用这两个辅助数组，分配过程也不会有问题
+        // 当遇到一个之前从来没有分配过的小于一个pageSize大小的请求时，会走allocateNormal中的逻辑
         if ((normCapacity & subpageOverflowMask) == 0) { // capacity < pageSize
             int tableIdx;
             PoolSubpage<T>[] table;
@@ -113,6 +137,7 @@ abstract class PoolArena<T> {
                 table = smallSubpagePools;
             }
 
+            // 如果在tinySubpagePools或者smallSubpagePools中没有发现可用的subpage，说明所有的chunk中都没有可用的空间，会新创建一个chunk的
             synchronized (this) {
                 final PoolSubpage<T> head = table[tableIdx];
                 final PoolSubpage<T> s = head.next;
@@ -129,6 +154,7 @@ abstract class PoolArena<T> {
             return;
         }
 
+        // normCapacity >= pageSize && normCapacity <= chunkSize
         allocateNormal(buf, reqCapacity, normCapacity);
     }
 
@@ -163,9 +189,10 @@ abstract class PoolArena<T> {
         int tableIdx;
         PoolSubpage<T>[] table;
         if ((elemSize & 0xFFFFFE00) == 0) { // < 512
-            tableIdx = elemSize >>> 4;
+            tableIdx = elemSize >>> 4; //(elemSize / 16) 跟pageSize的最大值8192应该有关系
             table = tinySubpagePools;
-        } else {
+        } else { // 下面的内存都是512字节以上，大于等于512不到1k一个节点，大于等于1k不到2k的一个节点，大于等于2k不到4k的一个节点，大于等于4k不到8k的一个节点，依次类推
+
             tableIdx = 0;
             elemSize >>>= 10;
             while (elemSize != 0) {
@@ -195,11 +222,16 @@ abstract class PoolArena<T> {
             return normalizedCapacity;
         }
 
+        /*
+         * 如果是511，会走下面的逻辑，返回结果是512
+         */
+
         // Quantum-spaced
-        if ((reqCapacity & 15) == 0) {
+        if ((reqCapacity & 15) == 0) { // 可以被16整除
             return reqCapacity;
         }
 
+        // 这里处理不能被16整除的情况，相当于(1 + (reqCapacity / 16)) * 16
         return (reqCapacity & ~15) + 16;
     }
 

@@ -10,3 +10,5 @@
 */target
 /reports
 */reports
+*.versionsBackup
+*\.DS_Store

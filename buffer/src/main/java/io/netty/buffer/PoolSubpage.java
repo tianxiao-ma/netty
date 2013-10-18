@@ -22,6 +22,11 @@ final class PoolSubpage<T> {
     final int memoryMapIdx;
     final int runOffset;
     final int pageSize;
+    /**
+     * 一个page可以分配{@link #maxNumElems}个具有{@link #elemSize}大小的块，这些块的占用情况就是使用{@link #bitmap}来保存的。
+     * {@link #bitmap}中的每一个元素可以表示64个块的状态。相当于把一个具有{@link #maxNumElems}位的状态数组用long类型的数组来表示，
+     * 可以减小内存消耗并加快速度。其中0表示未占用，1表示已占用。
+     */
     final long[] bitmap;
 
     PoolSubpage<T> prev;
@@ -60,11 +65,17 @@ final class PoolSubpage<T> {
         doNotDestroy = true;
         this.elemSize = elemSize;
         if (elemSize != 0) {
-            maxNumElems = numAvail = pageSize / elemSize;
+            maxNumElems = numAvail = pageSize / elemSize; // 一个page最多可以分配多少elemSize大小的块
             nextAvail = 0;
-            bitmapLength = maxNumElems >>> 6;
+
+            // bitmap是long类型数组，所以每个元素有64位(long的长度)
+            // 将maxNumElems除以64，就可以知道bitmap的元素个数
+            // 如果maxNumElems不能被64整除，那么需要增加一个bitmap中的元素
+            // 比如，假设maxNumElems=65，也就是一个page可以分配65个elemSize大小的存储块，这个时候需要在bitmap中存放2个元素用来标记
+            // 这些小块的分配情况，如果bitmap中元素的某个位是1表示这个小块已经被分配出去了
+            bitmapLength = maxNumElems >>> 6; // maxNumElems / 64
             if ((maxNumElems & 63) != 0) {
-                bitmapLength ++;
+                bitmapLength ++; // 如果maxNumElems不能整除64，那么bitmapLength加上1
             }
 
             for (int i = 0; i < bitmapLength; i ++) {
@@ -88,8 +99,10 @@ final class PoolSubpage<T> {
         }
 
         final int bitmapIdx = nextAvail;
-        int q = bitmapIdx >>> 6;
-        int r = bitmapIdx & 63;
+        int q = bitmapIdx >>> 6;// bitmapIdx / 64
+        int r = bitmapIdx & 63;// bitmapIdx除以64的余数
+
+        // 下面计算bitmapIdx代表的位在bitmap中所处的位置，q是存储状态位的bitmap中的long元素的索引，而r是余数，表示在long元素中的具体哪一位
         assert (bitmap[q] >>> r & 1) == 0;
         bitmap[q] |= 1L << r;
 
@@ -117,15 +130,16 @@ final class PoolSubpage<T> {
         assert (bitmap[q] >>> r & 1) != 0;
         bitmap[q] ^= 1L << r;
 
+        // numAvail是0，说明已经page内已经没有可用空间了，释放了一个之后，又有了可用空间，需要把page重新放到可用page队列中去
         if (numAvail ++ == 0) {
             nextAvail = bitmapIdx;
             addToPool();
             return true;
         }
 
-        if (numAvail < maxNumElems) {
+        if (numAvail < maxNumElems) { //释放之后，可用块的数量小于maxNumElems，说明可以继续在这个page中分配内存
             return true;
-        } else {
+        } else { // numAvail == maxNumElems说明整个page中的数据已经都被释放掉了，可以从以分配page中移除，重新进行分配了
             doNotDestroy = false;
             removeFromPool();
             return false;
@@ -172,7 +186,9 @@ final class PoolSubpage<T> {
         }
     }
 
+    // 返回的是一个long，高32位保存bitmapIdx，低32位保存memoryMapIdex
     private long toHandle(int bitmapIdx) {
+        // 0x4000000000000000L=1<<62，是long能够表示的正整数中，最大的一个是2的指数次方的值(2的62次方，2的63次方是一个负数)
         return 0x4000000000000000L | (long) bitmapIdx << 32 | memoryMapIdx;
     }
 

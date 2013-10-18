@@ -33,6 +33,10 @@ import java.util.Queue;
  * A NIO {@link ByteBuffer} based buffer.  It is recommended to use {@link Unpooled#directBuffer(int)}
  * and {@link Unpooled#wrappedBuffer(ByteBuffer)} instead of calling the
  * constructor explicitly.
+ *
+ * 通过{@link ByteBuffer#allocateDirect(int)}创建堆外buffer，但是没有保存了被创建的堆外buffer的memoryAddress。
+ *
+ * 与{@link UnpooledUnsafeDirectByteBuf}最大的区别就是这一点
  */
 public class UnpooledDirectByteBuf extends AbstractReferenceCountedByteBuf {
 
